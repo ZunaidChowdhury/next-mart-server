@@ -24,7 +24,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 NextMart backend server running on port ${PORT}`);
-});
+// Start Server locally
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 NextMart backend server running on port ${PORT}`);
+  });
+}
+
+export default app;
+
