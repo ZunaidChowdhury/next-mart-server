@@ -31,3 +31,31 @@ export async function verifyToken(req: Request, res: Response, next: NextFunctio
     });
   }
 }
+
+export function verifyBuyer(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ message: 'Unauthorized: Session not verified' });
+    return;
+  }
+
+  if (req.user.role !== 'buyer') {
+    res.status(403).json({ message: 'Forbidden: Buyer access required' });
+    return;
+  }
+
+  next();
+}
+
+export function verifyAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ message: 'Unauthorized: Session not verified' });
+    return;
+  }
+
+  if (req.user.role !== 'admin') {
+    res.status(403).json({ message: 'Forbidden: Admin access required' });
+    return;
+  }
+
+  next();
+}
