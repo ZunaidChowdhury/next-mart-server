@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
+import productRoutes from './routes/product.routes.js';
 
 // Connect to Database
 connectDB();
@@ -20,6 +21,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
 
 // Health Check Route
 app.get('/health', (req, res) => {
