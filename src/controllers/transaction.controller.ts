@@ -205,3 +205,116 @@ export async function processCompletedSession(session: any): Promise<void> {
   await transaction.save();
   console.log(`✅ Transaction successfully processed and logged: ${transactionId}`);
 }
+
+export async function getCheckoutSessionDetails(req: Request, res: Response): Promise<void> {
+  try {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+      res.status(400).json({ message: 'Session ID is required' });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized: Session not verified' });
+      return;
+    }
+
+    // Retrieve checkout session from Stripe
+    const session = (await stripe.checkout.sessions.retrieve(sessionId)) as any;
+
+    if (!session) {
+      res.status(404).json({ message: 'Checkout session not found' });
+      return;
+    }
+
+    // Verify ownership of the checkout session
+    if (session.metadata?.userId !== req.user.id) {
+      res.status(403).json({ message: 'Forbidden: You do not have permission to view this checkout session' });
+      return;
+    }
+
+    // Retrieve line items for the checkout session
+    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 });
+
+    // Look up transaction record in DB to see webhook completion state
+    const transaction = await Transaction.findOne({
+      transactionId: (session.payment_intent as string) || session.id,
+    });
+
+    // Formulate delivery estimation (3 to 5 business days from session creation)
+    const creationDate = session.created ? new Date(session.created * 1000) : new Date();
+    
+    // Add business days helper
+    const addBusinessDays = (startDate: Date, days: number): Date => {
+      const result = new Date(startDate);
+      let count = 0;
+      while (count < days) {
+        result.setDate(result.getDate() + 1);
+        const day = result.getDay();
+        if (day !== 0 && day !== 6) { // Skip Sunday (0) and Saturday (6)
+          count++;
+        }
+      }
+      return result;
+    };
+
+    const deliveryStart = addBusinessDays(creationDate, 3);
+    const deliveryEnd = addBusinessDays(creationDate, 5);
+
+    const formatDate = (date: Date): string => {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    };
+
+    const deliveryEstimation = `${formatDate(deliveryStart)} - ${formatDate(deliveryEnd)}`;
+
+    // Build the items list: pull normalized metadata from DB if found, otherwise parse Stripe
+    const items = transaction
+      ? transaction.items.map((item) => ({
+          id: item.product.toString(),
+          title: item.title,
+          quantity: item.quantity,
+          price: item.price,
+          variation: item.variation || '',
+        }))
+      : lineItems.data.map((item) => {
+          let variation = '';
+          const desc = item.description || '';
+          if (desc.includes('| Variation:')) {
+            variation = desc.split('| Variation:')[1].trim();
+          }
+          return {
+            id: item.id,
+            title: desc.split('|')[0].replace('Brand:', '').trim(),
+            quantity: item.quantity || 1,
+            price: item.amount_total ? (item.amount_total / (item.quantity || 1)) / 100 : 0,
+            variation,
+          };
+        });
+
+    const details = {
+      sessionId: session.id,
+      paymentIntentId: (session.payment_intent as string) || null,
+      paymentStatus: transaction ? transaction.paymentStatus : session.payment_status,
+      totalAmount: session.amount_total ? session.amount_total / 100 : 0,
+      currency: session.currency || 'usd',
+      customer: {
+        email: session.customer_details?.email || req.user.email,
+        name: session.customer_details?.name || req.user.name || 'Valued Customer',
+      },
+      shippingAddress: session.shipping_details?.address || transaction?.shippingAddress || null,
+      deliveryEstimation,
+      items,
+    };
+
+    res.status(200).json(details);
+  } catch (error: any) {
+    console.error('Error retrieving checkout session details:', error);
+    res.status(500).json({ message: 'Failed to retrieve checkout session details', error: error.message });
+  }
+}
