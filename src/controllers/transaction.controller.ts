@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { env } from '../config/env.js';
 import { Product } from '../models/product.model.js';
+import { Transaction } from '../models/transaction.model.js';
 
 // Initialize Stripe instance
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
@@ -94,4 +95,113 @@ export async function createCheckoutSession(req: Request, res: Response): Promis
     console.error('Error creating checkout session:', error);
     res.status(500).json({ message: 'Failed to create checkout session', error: error.message });
   }
+}
+
+export async function handleStripeWebhook(req: Request, res: Response): Promise<void> {
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+
+  if (!sig || !webhookSecret) {
+    res.status(400).json({ message: 'Webhook signature or secret missing' });
+    return;
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody!,
+      sig,
+      webhookSecret
+    );
+  } catch (err: any) {
+    console.error(`❌ Webhook signature verification failed: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as any;
+
+    try {
+      await processCompletedSession(session);
+    } catch (error: any) {
+      console.error('Error processing completed checkout session:', error);
+      res.status(500).json({ message: 'Failed to process webhook transaction', error: error.message });
+      return;
+    }
+  }
+
+  res.status(200).json({ received: true });
+}
+
+export async function processCompletedSession(session: any): Promise<void> {
+  const transactionId = session.payment_intent as string || session.id;
+  const userId = session.metadata?.userId;
+  const itemsString = session.metadata?.items;
+
+  if (!userId || !itemsString) {
+    throw new Error('Missing metadata (userId or items) in checkout session');
+  }
+
+  // Idempotency Check: prevent duplicate webhook ingestion
+  const existingTx = await Transaction.findOne({ transactionId });
+  if (existingTx) {
+    console.log(`⚠️ Transaction ${transactionId} already processed. Skipping webhook fulfillment.`);
+    return;
+  }
+
+  const items = JSON.parse(itemsString);
+  const transactionItems = [];
+
+  for (const item of items) {
+    const product = await Product.findById(item.product);
+    if (!product) {
+      throw new Error(`Product not found during fulfillment: ${item.product}`);
+    }
+
+    transactionItems.push({
+      product: product._id,
+      title: product.title,
+      quantity: item.quantity,
+      price: product.salePrice, // Lock historical price at payment completion
+      variation: item.variation || ''
+    });
+
+    // Decrement stock levels and increment sold stats
+    product.stockCount = Math.max(0, product.stockCount - item.quantity);
+    if (product.stockCount === 0) {
+      product.availableStatus = 'out-of-stock';
+    }
+    product.soldQuantity += item.quantity;
+    
+    await product.save();
+  }
+
+  // Extract shipping coordinates
+  const shippingDetails = session.shipping_details;
+  const shippingAddress = {
+    line1: shippingDetails?.address?.line1 || 'No shipping address provided',
+    city: shippingDetails?.address?.city || 'Unknown',
+    state: shippingDetails?.address?.state || '',
+    postalCode: shippingDetails?.address?.postal_code || '0000',
+    country: shippingDetails?.address?.country || 'Unknown'
+  };
+
+  const totalAmount = (session.amount_total || 0) / 100;
+  const currency = session.currency || 'usd';
+
+  // Instantiate Transaction Record
+  const transaction = new Transaction({
+    transactionId,
+    user: userId,
+    items: transactionItems,
+    totalAmount,
+    currency,
+    paymentStatus: 'completed',
+    shippingAddress
+  });
+
+  await transaction.save();
+  console.log(`✅ Transaction successfully processed and logged: ${transactionId}`);
 }
