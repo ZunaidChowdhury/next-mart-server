@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
+import transactionRoutes from './routes/transaction.routes.js';
 
 // Connect to Database
 connectDB();
@@ -17,11 +18,16 @@ app.use(cors({
   origin: FRONTEND_URL,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/checkout', transactionRoutes);
 
 // Health Check Route
 app.get('/health', (req, res) => {
