@@ -318,3 +318,23 @@ export async function getCheckoutSessionDetails(req: Request, res: Response): Pr
     res.status(500).json({ message: 'Failed to retrieve checkout session details', error: error.message });
   }
 }
+
+export async function getUserTransactionHistory(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized: Session not verified' });
+      return;
+    }
+
+    const transactions = await Transaction.find({ user: req.user.id })
+      .sort({ createdAt: -1 }); // Newest orders appear first
+
+    res.status(200).json({ transactions });
+  } catch (error: any) {
+    console.error('Error fetching transaction history:', error);
+    res.status(500).json({
+      message: 'Failed to retrieve transaction history',
+      error: error.message,
+    });
+  }
+}
