@@ -85,6 +85,23 @@ export async function getProductById(req: Request, res: Response): Promise<void>
   }
 }
 
+export async function getAllProductsAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const products = await Product.find({}).sort({ createdAt: -1 });
+    const totalProducts = products.length;
+
+    res.status(200).json({
+      products,
+      totalProducts
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      message: 'Failed to fetch admin product inventory',
+      error: error.message
+    });
+  }
+}
+
 export async function createProduct(req: Request, res: Response): Promise<void> {
   try {
     const {
