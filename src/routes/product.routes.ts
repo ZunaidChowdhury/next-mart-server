@@ -3,6 +3,7 @@ import {
   getProducts, 
   getProductById, 
   getAllProductsAdmin,
+  getFeaturedProducts,
   createProduct, 
   updateProduct, 
   updateProductStatus, 
@@ -18,6 +19,7 @@ router.get('/admin/all', verifyToken, verifyAdmin, getAllProductsAdmin);
 
 // Public catalog routes
 router.get('/', getProducts);
+router.get('/featured', getFeaturedProducts);
 router.get('/:id', getProductById);
 
 // Admin-secured mutation routes

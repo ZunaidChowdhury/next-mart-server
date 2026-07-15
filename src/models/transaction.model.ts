@@ -15,6 +15,7 @@ export interface ITransaction extends Document {
   totalAmount: number;
   currency: string;
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   shippingAddress: {
     line1: string;
     city: string;
@@ -39,6 +40,7 @@ const TransactionSchema = new Schema<ITransaction>({
   totalAmount: { type: Number, required: true },
   currency: { type: String, default: 'usd' },
   paymentStatus: { type: String, enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' },
+  orderStatus: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
   shippingAddress: {
     line1: { type: String, required: true },
     city: { type: String, required: true },

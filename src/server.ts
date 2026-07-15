@@ -5,6 +5,8 @@ import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
 import transactionRoutes from './routes/transaction.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import wishlistRoutes from './routes/wishlist.routes.js';
 
 // Connect to Database
 connectDB();
@@ -28,6 +30,8 @@ app.use(express.json({
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/checkout', transactionRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Health Check Route
 app.get('/health', (req, res) => {

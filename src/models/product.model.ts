@@ -36,6 +36,7 @@ export interface IProduct extends Omit<Document, 'model'> {
   specification: ISpecification[];
   reviews: IReview[];
   categories: string[];
+  addedBy?: string;
   isPrivate: boolean;
   stockCount: number;
   createdAt: Date;
@@ -120,6 +121,9 @@ const ProductSchema = new Schema<IProduct>({
     required: true,
     index: true 
   }],
+  addedBy: {
+    type: String
+  },
   isPrivate: { 
     type: Boolean, 
     default: false 
