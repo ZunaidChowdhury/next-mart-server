@@ -4,10 +4,15 @@ import { env } from '../config/env.js';
 import { Product } from '../models/product.model.js';
 import { Transaction } from '../models/transaction.model.js';
 
-// Initialize Stripe instance
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16' as any,
-});
+// Lazy Stripe instance
+function getStripe(): Stripe {
+  if (!env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(env.STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16' as any,
+  });
+}
 
 export async function createCheckoutSession(req: Request, res: Response): Promise<void> {
   try {
@@ -68,7 +73,7 @@ export async function createCheckoutSession(req: Request, res: Response): Promis
     }
 
     // Configure Stripe Checkout options
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
@@ -109,7 +114,7 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       req.rawBody!,
       sig,
       webhookSecret
@@ -222,7 +227,7 @@ export async function getCheckoutSessionDetails(req: Request, res: Response): Pr
     }
 
     // Retrieve checkout session from Stripe
-    const session = (await stripe.checkout.sessions.retrieve(sessionId)) as any;
+    const session = (await getStripe().checkout.sessions.retrieve(sessionId)) as any;
 
     if (!session) {
       res.status(404).json({ message: 'Checkout session not found' });
@@ -236,7 +241,7 @@ export async function getCheckoutSessionDetails(req: Request, res: Response): Pr
     }
 
     // Retrieve line items for the checkout session
-    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 });
+    const lineItems = await getStripe().checkout.sessions.listLineItems(sessionId, { limit: 100 });
 
     // Look up transaction record in DB to see webhook completion state
     const transaction = await Transaction.findOne({

@@ -13,11 +13,11 @@ if (!MONGODB_URI) {
 }
 
 if (!STRIPE_SECRET_KEY) {
-  throw new Error('❌ STRIPE_SECRET_KEY environment variable is missing');
+  console.warn('⚠️  STRIPE_SECRET_KEY not set — checkout will be unavailable');
 }
 
 if (!STRIPE_WEBHOOK_SECRET) {
-  throw new Error('❌ STRIPE_WEBHOOK_SECRET environment variable is missing');
+  console.warn('⚠️  STRIPE_WEBHOOK_SECRET not set — webhooks will be unavailable');
 }
 
 export const env = {

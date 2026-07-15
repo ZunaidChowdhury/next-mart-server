@@ -24,10 +24,17 @@ app.use(express.json({
   }
 }));
 
-// Lazy DB connection — fire-and-forget so /health never blocks
-if (mongoose.connection.readyState !== 1) {
-  connectDB().catch(() => {});
+// Ensure DB is connected before API routes — /health bypasses this
+async function ensureDB(req: any, res: any, next: any) {
+  if (mongoose.connection.readyState === 1) return next();
+  try {
+    await connectDB();
+    next();
+  } catch {
+    res.status(503).json({ message: 'Database unavailable' });
+  }
 }
+app.use('/api', ensureDB);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -35,6 +42,12 @@ app.use('/api/products', productRoutes);
 app.use('/api/checkout', transactionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+
+// Global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ message: 'Internal server error', error: err.message });
+});
 
 // Health Check Route (no DB needed)
 app.get('/health', (req, res) => {
