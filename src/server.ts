@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
@@ -7,9 +8,6 @@ import productRoutes from './routes/product.routes.js';
 import transactionRoutes from './routes/transaction.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
-
-// Connect to Database
-connectDB();
 
 const app = express();
 const PORT = env.PORT;
@@ -26,6 +24,11 @@ app.use(express.json({
   }
 }));
 
+// Lazy DB connection — fire-and-forget so /health never blocks
+if (mongoose.connection.readyState !== 1) {
+  connectDB().catch(() => {});
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -33,7 +36,7 @@ app.use('/api/checkout', transactionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 
-// Health Check Route
+// Health Check Route (no DB needed)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
