@@ -102,6 +102,24 @@ export async function getAllProductsAdmin(req: Request, res: Response): Promise<
   }
 }
 
+export async function getFeaturedProducts(req: Request, res: Response): Promise<void> {
+  try {
+    const products = await Product.find({
+      featuredPosition: { $ne: null },
+      isPrivate: false
+    })
+      .sort({ featuredPosition: 1 })
+      .limit(8);
+
+    res.status(200).json({ products });
+  } catch (error: any) {
+    res.status(500).json({
+      message: 'Failed to fetch featured products',
+      error: error.message
+    });
+  }
+}
+
 export async function createProduct(req: Request, res: Response): Promise<void> {
   try {
     const {
@@ -118,7 +136,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       coreFeatures,
       specification,
       stockCount,
-      isPrivate
+      isPrivate,
+      featuredPosition
     } = req.body;
 
     // Validate required fields
@@ -153,8 +172,10 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       coreFeatures: coreFeatures || [],
       specification: specification || [],
       stockCount,
+      addedBy: req.user?.email,
       isPrivate: isPrivate ?? false,
-      availableStatus
+      availableStatus,
+      featuredPosition: featuredPosition ?? null
     });
 
     await newProduct.save();

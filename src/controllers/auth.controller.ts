@@ -15,11 +15,12 @@ export async function syncUserSession(req: Request, res: Response): Promise<void
     let user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
-      // Determine role: make first user in database or matching ADMIN_EMAIL env variable the admin
       const isFirstUser = (await User.countDocuments({})) === 0;
       const adminEmail = process.env.ADMIN_EMAIL;
       const isAdminEmail = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
       const role = (isFirstUser || isAdminEmail) ? 'admin' : 'buyer';
+
+      console.log(`[auth/sync] New user — email=${email}, ADMIN_EMAIL=${adminEmail}, isAdminEmail=${isAdminEmail}, role assigned=${role}`);
 
       user = new User({
         name,
@@ -29,7 +30,19 @@ export async function syncUserSession(req: Request, res: Response): Promise<void
       });
       await user.save();
     } else {
-      // Update existing user details if they have changed
+      const adminEmail = process.env.ADMIN_EMAIL;
+      const isAdminEmail = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
+
+      console.log(`[auth/sync] Existing user — email=${email}, ADMIN_EMAIL=${adminEmail}, isAdminEmail=${isAdminEmail}, current role=${user.role}`);
+
+      if (isAdminEmail && user.role !== 'admin') {
+        console.log(`[auth/sync] Upgrading user ${email} to admin`);
+        user.role = 'admin';
+      } else if (!isAdminEmail && user.role !== 'buyer') {
+        console.log(`[auth/sync] Downgrading user ${email} to buyer`);
+        user.role = 'buyer';
+      }
+
       user.name = name;
       if (image) {
         user.image = image;

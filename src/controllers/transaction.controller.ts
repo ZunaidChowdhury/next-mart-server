@@ -199,6 +199,7 @@ export async function processCompletedSession(session: any): Promise<void> {
     totalAmount,
     currency,
     paymentStatus: 'completed',
+    orderStatus: 'pending',
     shippingAddress
   });
 
