@@ -134,7 +134,8 @@ const ProductSchema = new Schema<IProduct>({
     default: 0 
   }
 }, { 
-  timestamps: true 
+  timestamps: true,
+  collection: 'product'
 });
 
 // Text Index for full-text search capabilities across multiple catalog fields

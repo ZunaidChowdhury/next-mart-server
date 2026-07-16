@@ -9,7 +9,7 @@ export async function getProducts(req: Request, res: Response): Promise<void> {
 
     const { search, category, minPrice, maxPrice, rating, sortBy } = req.query;
 
-    const filterQuery: any = { isPrivate: false };
+    const filterQuery: any = { isPrivate: { $ne: true } };
 
     if (search) {
       filterQuery.$text = { $search: search as string };
@@ -69,7 +69,7 @@ export async function getProducts(req: Request, res: Response): Promise<void> {
 export async function getProductById(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const product = await Product.findOne({ _id: id, isPrivate: false });
+    const product = await Product.findOne({ _id: id, isPrivate: { $ne: true } });
 
     if (!product) {
       res.status(404).json({ message: 'Product not found' });
