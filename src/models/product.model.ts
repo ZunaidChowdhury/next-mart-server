@@ -134,12 +134,8 @@ const ProductSchema = new Schema<IProduct>({
     default: 0 
   }
 }, { 
-<<<<<<< Updated upstream
-  timestamps: true 
-=======
   timestamps: true,
   collection: 'product'
->>>>>>> Stashed changes
 });
 
 // Text Index for full-text search capabilities across multiple catalog fields
