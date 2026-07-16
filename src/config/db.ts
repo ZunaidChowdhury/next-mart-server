@@ -15,6 +15,7 @@ export const connectDB = async (): Promise<void> => {
     const db = await mongoose.connect(env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000,
+      dbName: 'next-mart',
     });
     isConnected = db.connections[0].readyState === 1;
     console.log('🎯 MongoDB connected successfully');
